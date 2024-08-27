@@ -9,6 +9,8 @@ require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/cli/bootstrap.php
 use Bitrix\Main\Loader;
 use Bitrix\Iblock\IblockTable;
 
+
+
 Loader::includeModule('iblock');
 $iblockId = intval(IblockTable::getList([
     'filter' => [
@@ -20,23 +22,64 @@ $iblockId = intval(IblockTable::getList([
     ],
 ])->fetch()['ID']);
 
-$count = 0;
-foreach (explode("\n", file_get_contents('resources/city.txt')) as $line) {
-    $city = CIBlockElement::GetList([
-        'ID',
-    ], [
-        'IBLOCK_ID' => $iblockId,
-        'CODE' => 'test'
-    ])->fetch()['ID'];
-    if ($city !== NULL) {
-        $el = new CIBlockElement;
-        $el->Add([
-            'IBLOCK_ID' => $iblockId,
-            'NAME' => $line,
-            'CODE' =>  Cutil::translit($line, 'ru'),
-        ]);
-        echo $line . PHP_EOL;
-        $count++;
+if (!isset($argv[1])) {
+    $count = 0;
+    $cityFromIblock = CIBlockElement::GetList([
+     
+        ], [
+        'IBLOCK_ID' => $iblockId, 
+        ],
+        false,
+        false,
+        [
+            'ID',
+            'NAME',
+            'PROPERTY_phone',
+    ]);
+    
+    $citysNameFromIblock = [];
+    $citysFromFile = explode("\n", file_get_contents('resources/city.txt'));
+    while ($arItem = $cityFromIblock->GetNext()) {
+       array_push($citysNameFromIblock, $arItem['NAME'] );
     }
+    foreach ($citysFromFile as $city) {
+       if (!array_search($city, $citysNameFromIblock)) {
+        $el = new CIBlockElement; 
+            $el->Add([
+                'IBLOCK_ID' => $iblockId,
+                'NAME' => $city,
+                'CODE' =>  Cutil::translit($city, 'ru'),
+                'PROPERTY_VALUES' => [
+                    'phone' => randPhone(),
+                ]
+            ]);
+            echo $city . PHP_EOL;
+            $count++;
+       }
+    }
+    echo 'Городов добавлено: ' . $count . PHP_EOL;
+} 
+if (isset($argv[1])) {
+    $cityId = CIBlockElement::GetList(
+        [],
+        ['NAME' => $argv[1]],
+        false,
+        false,
+        ['ID']
+    )->Fetch()['ID'];
+
+    CIBlockElement::SetPropertyValuesEx(
+        $cityId,
+        $iblockId,
+        ['phone' => $argv[2]]
+    );
+
 }
-echo 'Городов добавлено: ' . $count;
+
+function randPhone() {
+    $num = '8';
+    for ($i = 0; $i <= 9; $i++) {
+        $num .= mt_rand(0, 10);
+    }
+    return $num;
+}
