@@ -1,0 +1,42 @@
+<?php
+declare(strict_types=1);
+if (php_sapi_name() !== 'cli') {
+    die();
+}
+$_SERVER['DOCUMENT_ROOT'] = \realpath(__DIR__ . '/../../../../../..');
+require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/cli/bootstrap.php');
+
+use Bitrix\Main\Loader;
+use Bitrix\Iblock\IblockTable;
+
+Loader::includeModule('iblock');
+$iblockId = intval(IblockTable::getList([
+    'filter' => [
+        'CODE' => 'city',
+    ],
+    'select' => [
+        'ID',
+        'CODE',
+    ],
+])->fetch()['ID']);
+
+$count = 0;
+foreach (explode("\n", file_get_contents('resources/city.txt')) as $line) {
+    $city = CIBlockElement::GetList([
+        'ID',
+    ], [
+        'IBLOCK_ID' => $iblockId,
+        'CODE' => 'test'
+    ])->fetch()['ID'];
+    if ($city !== NULL) {
+        $el = new CIBlockElement;
+        $el->Add([
+            'IBLOCK_ID' => $iblockId,
+            'NAME' => $line,
+            'CODE' =>  Cutil::translit($line, 'ru'),
+        ]);
+        echo $line . PHP_EOL;
+        $count++;
+    }
+}
+echo 'Городов добавлено: ' . $count;
