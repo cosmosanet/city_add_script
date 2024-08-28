@@ -1,0 +1,100 @@
+<?php
+declare(strict_types=1);
+if (php_sapi_name() !== 'cli') {
+    die();
+}
+$_SERVER['DOCUMENT_ROOT'] = \realpath(__DIR__ . '/../../../../../..');
+require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/cli/bootstrap.php');
+require_once '../Service/City/CityService.php';
+
+use Bitrix\Main\Loader;
+use Nutnet\Service\City\CityService;
+
+$flags = [
+    '-p' => 'Deception',
+    '--phone' => 'Deception',
+    '-l' => 'Deception',
+    '--load' => 'Deception',
+    '-ep' => 'Deception',
+    '--empty' => 'Deception'
+];
+Loader::includeModule('iblock');
+
+$service = new CityService();
+
+$iBlockElement = $service->getIblockElements('city', 
+    [
+        'ID',
+        'NAME',
+        'PROPERTY_phone',
+    ]
+);
+
+$args = array_slice($argv, 1);
+$flag = $args[0];
+
+switch ($flag) {
+    case '-p':
+    case '--phone':
+        if (isset($args[1])) {
+            $cityName = $args[1];
+        }
+        if (!isset($args[1])) {
+            echo 'Сity name not entered' . PHP_EOL;
+            break;
+        }
+        if (isset($args[2])) {
+            $phone = $args[2];
+        }
+        if (!isset($args[2])) {
+            echo 'Phone number not entered' . PHP_EOL;
+            break;
+        }
+        $cityId = $service->getIdForName($cityName);
+        if ($cityId  === NUll) {
+            echo 'City ' . $cityName . "don't exist" . PHP_EOL;
+        }
+        if ($cityId) {
+            var_dump($cityId);
+            $service->setPropertyValues($cityId, 'city', ['phone' => $phone]);
+        }
+        break;
+    case '-l':
+    case '--load':
+        $iBlockElementNamesAr = $service->getIBlockElementsToArrayNames($iBlockElement);
+        $cityFromFileAr = $service->fileToArray('resources/city.txt');
+        foreach ($cityFromFileAr as $city) {
+            $count = 0;
+            if (array_search($city, $iBlockElementNamesAr) === false) {
+                $service->addElement('city', $city,  ['phone' => $service->randPhone()]);
+                echo $city . PHP_EOL;
+                $count++;
+            }
+        }
+        echo 'City add: ' . $count . PHP_EOL;
+        break;
+    case '-ep':
+    case '--empty':
+        $curentiBlockElement = $service->getIblockElements('city', 
+            [
+                'ID',
+                'NAME',
+                'PROPERTY_phone',
+            ]
+        );
+        while ($item = $curentiBlockElement->GetNext()) {
+            $count = 0;
+            if ($item['PROPERTY_PHONE_VALUE'] == NULL) {
+                $service->setPropertyValues((int)$item['ID'], 'city', ['phone' => $service->randPhone()]);
+                echo $item['NAME'] . PHP_EOL;
+                $count ++;
+            }
+        }
+        echo 'City update: ' . $count . PHP_EOL;
+        break;
+    default:
+        echo 'support flags: ' . PHP_EOL;
+        foreach ($flags as $key => $value) {
+            echo $key . " " . $value . PHP_EOL;
+        }
+}
